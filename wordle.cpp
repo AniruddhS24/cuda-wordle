@@ -1,6 +1,7 @@
 #include <iostream>
 #include <fstream>
 #include <random>
+#include <algorithm>
 #include "wordle.h"
 using namespace std;
 
@@ -40,6 +41,11 @@ string post_guess(string guess, string word) {
 
   if(word.length() != guess.length()) {
     throw invalid_argument("Guesses must be of same length of word");
+  }
+
+  auto it = find(dictionary.begin(), dictionary.end(), guess);
+  if (it == dictionary.end()) {
+    throw invalid_argument("Invalid guess: Word does not exist in dictionary");
   }
 
   int letters[26] = {};
