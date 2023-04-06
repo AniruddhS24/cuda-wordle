@@ -1,4 +1,4 @@
-build: build_solver link
+build: build_solver link clean
 
 build_solver:
 	nvcc src/main.cpp -o main.o -c
@@ -8,3 +8,6 @@ build_solver:
 
 link:
 	nvcc main.o run_args.o wordle.o solver.o -o solver
+
+clean:
+	rm *.o
