@@ -1,4 +1,3 @@
-
 build: build_solver link
 
 build_solver:
@@ -9,4 +8,3 @@ build_solver:
 
 link:
 	nvcc main.o run_args.o wordle.o solver.o -o solver
-
