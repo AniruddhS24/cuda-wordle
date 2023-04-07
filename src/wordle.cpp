@@ -62,8 +62,10 @@ vector<int> Wordle::encode_word(string word)
     vector<int> ids;
     for (int i = 0; i < parts.size(); i++)
     {
-        if (vocab.word_to_id.count(parts[i]))
-            ids.push_back(vocab.word_to_id[parts[i]]);
+        if (vocab.word_to_id.count(parts[i])) {
+          ids.push_back(vocab.word_to_id[parts[i]]);
+        }
+        
     }
     return ids;
 }
@@ -81,6 +83,7 @@ void Wordle::set_target_word()
 {
     int index = rand() % dictionary.potential_words.size();
     target_word = dictionary.potential_words[index];
+    cout << target_word.size() << endl;
 }
 
 vector<int> Wordle::get_target_word() {
@@ -136,6 +139,8 @@ vector<int> Wordle::post_guess(string guess_str)
         }
     }
 
+    state.guesses.push_back(guess);
+    state.colors.push_back(coloring);
     return coloring;
 }
 

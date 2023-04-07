@@ -28,8 +28,8 @@ int main(int argc, char **argv)
 
     Solver solver{wordle.vocab.size, wordle.dictionary.potential_words};
 
-    int num_guesses = 5;
-    while (num_guesses >= 0) {
+    int num_guesses = 1;
+    while (num_guesses <= 5) {
         string guess;
         vector<int> solver_guess = solver.dummy_solver(wordle.state);
         cout << "Solver guessed: " << wordle.decode_word(solver_guess) << endl;
@@ -37,9 +37,20 @@ int main(int argc, char **argv)
         cin >> guess;
         vector<int> colors = wordle.post_guess(guess);
         cout << "Colors: " << endl;
-        for(int i = 0; i < tmp.size(); i++)
+        bool solved = true;
+        for(int i = 0; i < tmp.size(); i++) {
             cout << colors[i] << " ";
+            if (colors[i] != GREEN) {
+              solved = false;
+            }
+        }
         cout << endl;
+
+        if (solved) {
+          cout << "Solved in " << num_guesses << endl;
+          break;
+        }
+        num_guesses++;
     }
     
 }

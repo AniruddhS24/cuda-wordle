@@ -1,3 +1,6 @@
+run: build
+	./solver -d ./basic_dictionary/potential_words.txt -v ./basic_dictionary/vocab.txt
+
 build: build_solver link clean
 
 build_solver:
