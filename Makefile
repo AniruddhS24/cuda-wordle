@@ -1,7 +1,5 @@
-run: build
-	./solver -d ./basic_dictionary/potential_words.txt -v ./basic_dictionary/vocab.txt
 
-build: build_solver link clean
+build: build_solver build_kernel link clean
 
 build_solver:
 	nvcc src/main.cpp -o main.o -c
@@ -9,8 +7,14 @@ build_solver:
 	nvcc src/wordle.cpp -o wordle.o -c
 	nvcc src/host/solver.cu -o solver.o -c
 
+build_kernel:
+	nvcc src/device/solver_kernels.cu -o solver_kernels.o -c
+
+run:
+	./solver -d ./basic_dictionary/potential_words.txt -v ./basic_dictionary/vocab.txt
+	
 link:
-	nvcc main.o run_args.o wordle.o solver.o -o solver
+	nvcc main.o run_args.o wordle.o solver.o solver_kernels.o -o solver
 
 clean:
 	rm *.o

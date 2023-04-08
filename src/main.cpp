@@ -16,10 +16,10 @@ int main(int argc, char **argv)
     wordle.load_dictionary();
     wordle.set_target_word();
 
-    for ( const auto &p : wordle.vocab.word_to_id)
+    for (const auto &p : wordle.vocab.word_to_id)
         cout << p.first << " " << p.second << endl;
     vector<int> tmp = wordle.get_target_word();
-    for(int i = 0; i < tmp.size(); i++)
+    for (int i = 0; i < tmp.size(); i++)
         cout << tmp[i] << " ";
     cout << endl;
 
@@ -29,28 +29,31 @@ int main(int argc, char **argv)
     Solver solver{wordle.vocab.size, wordle.dictionary.potential_words};
 
     int num_guesses = 1;
-    while (num_guesses <= 5) {
+    while (num_guesses <= 5)
+    {
         string guess;
-        vector<int> solver_guess = solver.dummy_solver(wordle.state);
+        vector<int> solver_guess = solver.cuda_solver(wordle.state);
         cout << "Solver guessed: " << wordle.decode_word(solver_guess) << endl;
         cout << "Guess: ";
         cin >> guess;
         vector<int> colors = wordle.post_guess(guess);
         cout << "Colors: " << endl;
         bool solved = true;
-        for(int i = 0; i < tmp.size(); i++) {
+        for (int i = 0; i < tmp.size(); i++)
+        {
             cout << colors[i] << " ";
-            if (colors[i] != GREEN) {
-              solved = false;
+            if (colors[i] != GREEN)
+            {
+                solved = false;
             }
         }
         cout << endl;
 
-        if (solved) {
-          cout << "Solved in " << num_guesses << endl;
-          break;
+        if (solved)
+        {
+            cout << "Solved in " << num_guesses << endl;
+            break;
         }
         num_guesses++;
     }
-    
 }
