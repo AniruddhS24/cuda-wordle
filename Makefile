@@ -10,11 +10,14 @@ build_solver:
 build_kernel:
 	nvcc src/device/solver_kernels.cu -o solver_kernels.o -c
 
-run:
+run_gpu:
+	./solver -d ./basic_dictionary/potential_words.txt -v ./basic_dictionary/vocab.txt -g
+
+run_seq:
 	./solver -d ./basic_dictionary/potential_words.txt -v ./basic_dictionary/vocab.txt
 	
 link:
-	nvcc main.o run_args.o wordle.o solver.o solver_kernels.o -o solver
+	nvcc -arch=sm_30 main.o run_args.o wordle.o solver.o solver_kernels.o -o solver
 
 clean:
-	rm *.o
+	rm *.o 

@@ -152,11 +152,41 @@ __global__ void calculate_expected_information_kernel_2(int num_words, int word_
     }
 }
 
+float calculate_occupancy(void (*kernel)(int, int, int*, float*), int num_active_threads) {
+    int devId = 0;
+    cudaSetDevice(devId);
+
+    cudaDeviceProp devProp;
+    cudaGetDeviceProperties(&devProp, devId);
+
+    // max potential warps based on device properties
+    int num_sm = devProp.multiProcessorCount;
+    int max_block_per_sm;
+    cudaOccupancyMaxActiveBlocksPerMultiprocessor(
+        &max_block_per_sm,
+        kernel,
+        BLOCK_SIZE,
+        0);
+    int max_warps_per_sm = devProp.maxThreadsPerMultiProcessor / devProp.warpSize;
+    int max_num_warps = max_warps_per_sm * max_block_per_sm * num_sm;
+
+    // actual warps used by kernel invocation
+    int num_active_warps = (num_active_threads + devProp.warpSize - 1) / devProp.warpSize;
+    float occupancy = (float)num_active_warps / max_num_warps;
+
+    std::cout << "Occupancy: " << occupancy << std::endl;
+    return occupancy;
+    
+}
+
 void calculate_expected_information_cuda(int num_words, int word_len, int *dictionary, float *information)
 {
     dim3 blockGrid((num_words + BLOCK_SIZE - 1) / BLOCK_SIZE);
     dim3 threadBlock(BLOCK_SIZE);
+
     calculate_expected_information_kernel<<<blockGrid, threadBlock>>>(num_words, word_len, dictionary, information);
+    cudaDeviceSynchronize(); // wait for kernel to complete
+    calculate_occupancy(calculate_expected_information_kernel, num_words);
 }
 
 void calculate_expected_information_cuda_2(int num_words, int word_len, int *dictionary, float *information)
@@ -164,4 +194,6 @@ void calculate_expected_information_cuda_2(int num_words, int word_len, int *dic
     dim3 blockGrid((num_words * 243 + BLOCK_SIZE - 1) / BLOCK_SIZE);
     dim3 threadBlock(BLOCK_SIZE);
     calculate_expected_information_kernel_2<<<blockGrid, threadBlock>>>(num_words, word_len, dictionary, information);
+    cudaDeviceSynchronize(); // wait for kernel to complete
+    calculate_occupancy(calculate_expected_information_kernel_2, num_words * 243);
 }

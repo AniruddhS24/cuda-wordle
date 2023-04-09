@@ -12,7 +12,6 @@ using namespace std;
 float Solver::calculate_expected_information(vector<int> word)
 {
   unordered_map<int, int> colorings;
-  // cout << "Calculating Expected Info ...";
   for (int i = 0; i < dictionary.size(); i++)
   {
     vector<int> current_word = dictionary[i];
@@ -38,7 +37,6 @@ float Solver::calculate_expected_information(vector<int> word)
       expected_information += p * log2(1 / p);
     }
   }
-  // cout << "Finished E[I]" << endl;
   return expected_information;
 }
 
@@ -59,12 +57,10 @@ void Solver::update_dictionary(vector<int> guess, int color)
   }
   float p = float(dictionary.size()) / old_dict_size;
   cout << "Actual Information: " << log2(1 / p) << endl;
-  cout << "Updated Dictionary Old Size: " << old_dict_size << " New Size: " << dictionary.size() << endl;
 }
 
 vector<int> Solver::serial_solver(GameState state)
 {
-  cout << "Starting Solver" << endl;
   if (state.guesses.size() > 0)
   {
     update_dictionary(state.guesses.back(), state.colors.back());
@@ -87,7 +83,6 @@ vector<int> Solver::serial_solver(GameState state)
 
 vector<int> Solver::cuda_solver(GameState state)
 {
-  cout << "Starting CUDA Solver" << endl;
   if (state.guesses.size() > 0)
   {
     update_dictionary(state.guesses.back(), state.colors.back());
