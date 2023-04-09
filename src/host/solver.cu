@@ -9,44 +9,6 @@
 
 using namespace std;
 
-// vector<int> Solver::generate_coloring(vector<int> word, vector<int> guess)
-// {
-//   vector<int> coloring(word.size());
-//   map<int, int> letters;
-//   for (int c : word)
-//   {
-//     letters[c]++;
-//   }
-//   for (int i = 0; i < word.size(); i++)
-//   {
-//     int cur = guess[i];
-//     if (guess[i] == word[i])
-//     {
-//       coloring[i] = GREEN;
-//       letters[cur]--;
-//     }
-//   }
-
-//   for (int i = 0; i < word.size(); i++)
-//   {
-//     int cur = guess[i];
-//     if (coloring[i] == GREEN)
-//     {
-//       continue;
-//     }
-//     if (letters[cur] > 0)
-//     {
-//       coloring[i] = YELLOW;
-//       letters[cur]--;
-//     }
-//     else
-//     {
-//       coloring[i] = GRAY;
-//     }
-//   }
-//   return coloring;
-// }
-
 float Solver::calculate_expected_information(vector<int> word)
 {
   unordered_map<int, int> colorings;
@@ -146,7 +108,7 @@ vector<int> Solver::cuda_solver(GameState state)
 
   cudaMemcpy(_dictionary, dictionary_arr, num_words * 5 * sizeof(int), cudaMemcpyHostToDevice);
 
-  calculate_expected_information_cuda(num_words, 5, _dictionary, _information);
+  calculate_expected_information_cuda_2(num_words, 5, _dictionary, _information);
   cudaDeviceSynchronize();
 
   cudaMemcpy(information, _information, num_words * sizeof(float), cudaMemcpyDeviceToHost);
