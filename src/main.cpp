@@ -36,13 +36,13 @@ int main(int argc, char **argv)
         cout << "Solver guessed: " << wordle.decode_word(solver_guess) << endl;
         cout << "Guess: ";
         cin >> guess;
-        vector<int> colors = wordle.post_guess(guess);
+        int color = wordle.post_guess(guess);
         cout << "Colors: " << endl;
         bool solved = true;
         for (int i = 0; i < tmp.size(); i++)
         {
-            cout << colors[i] << " ";
-            if (colors[i] != GREEN)
+            cout << Wordle::get_coloring_bit(color, i) << " ";
+            if (Wordle::get_coloring_bit(color, i) != GREEN)
             {
                 solved = false;
             }

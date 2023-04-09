@@ -18,8 +18,7 @@ public:
     std::vector<int> cuda_solver(GameState state);
     std::vector<int> serial_solver(GameState state);
     float calculate_expected_information(std::vector<int> word);
-    void update_dictionary(std::vector<int> guess, std::vector<int> color);
-    std::vector<int> generate_coloring(std::vector<int> word, std::vector<int> guess);
+    void update_dictionary(std::vector<int> guess, int color);
 };
 
 #endif

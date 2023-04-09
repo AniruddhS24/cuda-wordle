@@ -9,72 +9,66 @@
 
 using namespace std;
 
-vector<int> Solver::generate_coloring(vector<int> word, vector<int> guess)
-{
-  vector<int> coloring(word.size());
-  map<int, int> letters;
-  for (int c : word)
-  {
-    letters[c]++;
-  }
-  for (int i = 0; i < word.size(); i++)
-  {
-    int cur = guess[i];
-    if (guess[i] == word[i])
-    {
-      coloring[i] = GREEN;
-      letters[cur]--;
-    }
-  }
+// vector<int> Solver::generate_coloring(vector<int> word, vector<int> guess)
+// {
+//   vector<int> coloring(word.size());
+//   map<int, int> letters;
+//   for (int c : word)
+//   {
+//     letters[c]++;
+//   }
+//   for (int i = 0; i < word.size(); i++)
+//   {
+//     int cur = guess[i];
+//     if (guess[i] == word[i])
+//     {
+//       coloring[i] = GREEN;
+//       letters[cur]--;
+//     }
+//   }
 
-  for (int i = 0; i < word.size(); i++)
-  {
-    int cur = guess[i];
-    if (coloring[i] == GREEN)
-    {
-      continue;
-    }
-    if (letters[cur] > 0)
-    {
-      coloring[i] = YELLOW;
-      letters[cur]--;
-    }
-    else
-    {
-      coloring[i] = GRAY;
-    }
-  }
-  return coloring;
-}
+//   for (int i = 0; i < word.size(); i++)
+//   {
+//     int cur = guess[i];
+//     if (coloring[i] == GREEN)
+//     {
+//       continue;
+//     }
+//     if (letters[cur] > 0)
+//     {
+//       coloring[i] = YELLOW;
+//       letters[cur]--;
+//     }
+//     else
+//     {
+//       coloring[i] = GRAY;
+//     }
+//   }
+//   return coloring;
+// }
 
 float Solver::calculate_expected_information(vector<int> word)
 {
-  unordered_map<string, int> colorings;
+  unordered_map<int, int> colorings;
   // cout << "Calculating Expected Info ...";
   for (int i = 0; i < dictionary.size(); i++)
   {
     vector<int> current_word = dictionary[i];
-    vector<int> coloring = generate_coloring(word, current_word);
-
-    string coloring_str = "";
-    for (int c : coloring)
+    int coloring = Wordle::generate_coloring(word, current_word);
+    if (colorings.count(coloring))
     {
-      coloring_str += ('0' + c);
-    }
-    if (colorings.count(coloring_str))
-    {
-      colorings[coloring_str]++;
+      colorings[coloring]++;
     }
     else
     {
-      colorings[coloring_str] = 1;
+      colorings[coloring] = 1;
     }
   }
 
   float expected_information = 0.0f;
   for (auto it = colorings.begin(); it != colorings.end(); it++)
   {
-    string key = it->first;
+    int key = it->first;
     int occurances = it->second;
     float p = float(occurances) / dictionary.size();
     if (p > 0)
@@ -86,24 +80,13 @@ float Solver::calculate_expected_information(vector<int> word)
   return expected_information;
 }
 
-void Solver::update_dictionary(vector<int> guess, vector<int> color)
+void Solver::update_dictionary(vector<int> guess, int color)
 {
   int old_dict_size = dictionary.size();
   for (auto it = dictionary.begin(); it != dictionary.end();)
   {
-    vector<int> coloring = generate_coloring(*it, guess);
-
-    bool same = true;
-    for (int i = 0; i < coloring.size(); i++)
-    {
-      if (coloring[i] != color[i])
-      {
-        same = false;
-        break;
-      }
-    }
-
-    if (!same)
+    int coloring = Wordle::generate_coloring(*it, guess);
+    if (coloring != color)
     {
       it = dictionary.erase(it);
     }

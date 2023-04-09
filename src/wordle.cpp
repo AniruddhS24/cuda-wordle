@@ -62,10 +62,10 @@ vector<int> Wordle::encode_word(string word)
     vector<int> ids;
     for (int i = 0; i < parts.size(); i++)
     {
-        if (vocab.word_to_id.count(parts[i])) {
-          ids.push_back(vocab.word_to_id[parts[i]]);
+        if (vocab.word_to_id.count(parts[i]))
+        {
+            ids.push_back(vocab.word_to_id[parts[i]]);
         }
-        
     }
     return ids;
 }
@@ -86,11 +86,78 @@ void Wordle::set_target_word()
     cout << target_word.size() << endl;
 }
 
-vector<int> Wordle::get_target_word() {
+vector<int> Wordle::get_target_word()
+{
     return target_word;
 }
 
-vector<int> Wordle::post_guess(string guess_str)
+int Wordle::set_coloring_bit(int coloring, int pos, int value)
+{
+    int base = 1;
+    for (int i = 0; i < pos; i++)
+        base *= 3;
+    coloring += value * base;
+    return coloring;
+}
+
+int Wordle::get_coloring_bit(int coloring, int pos)
+{
+    for (int i = 0; i < pos; i++)
+        coloring /= 3;
+    return coloring % 3;
+}
+
+void Wordle::print_coloring(int coloring)
+{
+    for (int i = 0; i < 5; i++)
+    {
+        cout << Wordle::get_coloring_bit(coloring, i) << " ";
+    }
+
+    cout << endl;
+}
+
+int Wordle::generate_coloring(vector<int> word, vector<int> guess)
+{
+    map<int, int> letters;
+    int coloring = 0;
+    for (int c : word)
+    {
+        letters[c]++;
+    }
+
+    for (int i = 0; i < word.size(); i++)
+    {
+        int cur = guess[i];
+        if (guess[i] == word[i])
+        {
+            coloring = set_coloring_bit(coloring, i, GREEN);
+            letters[cur]--;
+        }
+    }
+
+    for (int i = 0; i < word.size(); i++)
+    {
+        int cur = guess[i];
+        if (get_coloring_bit(coloring, i) == GREEN)
+        {
+            continue;
+        }
+        if (letters[cur] > 0)
+        {
+            coloring = set_coloring_bit(coloring, i, YELLOW);
+            letters[cur]--;
+        }
+        else
+        {
+            coloring = set_coloring_bit(coloring, i, GRAY);
+        }
+    }
+
+    return coloring;
+}
+
+int Wordle::post_guess(string guess_str)
 {
     vector<int> guess = encode_word(guess_str);
     if (target_word.size() != guess.size())
@@ -104,49 +171,17 @@ vector<int> Wordle::post_guess(string guess_str)
         throw invalid_argument("Invalid guess: Word does not exist in dictionary");
     }
 
-    map<int, int> letters;
-    for (int c : target_word)
-    {
-        letters[c]++;
-    }
-
-    vector<int> coloring(target_word.size());
-    for (int i = 0; i < target_word.size(); i++)
-    {
-        int cur = guess[i];
-        if (guess[i] == target_word[i])
-        {
-            coloring[i] = GREEN;
-            letters[cur]--;
-        }
-    }
-
-    for (int i = 0; i < target_word.size(); i++)
-    {
-        int cur = guess[i];
-        if (coloring[i] == GREEN)
-        {
-            continue;
-        }
-        if (letters[cur] > 0)
-        {
-            coloring[i] = YELLOW;
-            letters[cur]--;
-        }
-        else
-        {
-            coloring[i] = GRAY;
-        }
-    }
+    int coloring = generate_coloring(target_word, guess);
 
     state.guesses.push_back(guess);
     state.colors.push_back(coloring);
     return coloring;
 }
 
-vector<string> word_tokenizer(string input) {
+vector<string> word_tokenizer(string input)
+{
     vector<string> res;
-    for(int i = 0; i < input.length(); i++)
+    for (int i = 0; i < input.length(); i++)
         res.push_back(string(1, input[i]));
     return res;
 }
