@@ -1,4 +1,5 @@
 #include "wordle.h"
+#include "util.h"
 #include <iostream>
 #include <fstream>
 #include <vector>
@@ -91,27 +92,11 @@ vector<int> Wordle::get_target_word()
     return target_word;
 }
 
-int Wordle::set_coloring_bit(int coloring, int pos, int value)
-{
-    int base = 1;
-    for (int i = 0; i < pos; i++)
-        base *= 3;
-    coloring += value * base;
-    return coloring;
-}
-
-int Wordle::get_coloring_bit(int coloring, int pos)
-{
-    for (int i = 0; i < pos; i++)
-        coloring /= 3;
-    return coloring % 3;
-}
-
 void Wordle::print_coloring(int coloring)
 {
     for (int i = 0; i < 5; i++)
     {
-        cout << Wordle::get_coloring_bit(coloring, i) << " ";
+        cout << get_base3_bit(coloring, i) << " ";
     }
 
     cout << endl;
@@ -131,7 +116,7 @@ int Wordle::generate_coloring(vector<int> word, vector<int> guess)
         int cur = guess[i];
         if (guess[i] == word[i])
         {
-            coloring = set_coloring_bit(coloring, i, GREEN);
+            coloring = set_base3_bit(coloring, i, GREEN);
             letters[cur]--;
         }
     }
@@ -139,18 +124,18 @@ int Wordle::generate_coloring(vector<int> word, vector<int> guess)
     for (int i = 0; i < word.size(); i++)
     {
         int cur = guess[i];
-        if (get_coloring_bit(coloring, i) == GREEN)
+        if (get_base3_bit(coloring, i) == GREEN)
         {
             continue;
         }
         if (letters[cur] > 0)
         {
-            coloring = set_coloring_bit(coloring, i, YELLOW);
+            coloring = set_base3_bit(coloring, i, YELLOW);
             letters[cur]--;
         }
         else
         {
-            coloring = set_coloring_bit(coloring, i, GRAY);
+            coloring = set_base3_bit(coloring, i, GRAY);
         }
     }
 

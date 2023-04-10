@@ -9,7 +9,7 @@
 
 using namespace std;
 
-float Solver::calculate_expected_information(vector<int> word)
+float calculate_expected_information(vector<int> &word, vector<vector<int>> &dictionary)
 {
   unordered_map<int, int> colorings;
   // cout << "Calculating Expected Info ...";
@@ -42,7 +42,7 @@ float Solver::calculate_expected_information(vector<int> word)
   return expected_information;
 }
 
-void Solver::update_dictionary(vector<int> guess, int color)
+void update_dictionary(vector<int> &guess, vector<vector<int>> &dictionary, int color)
 {
   int old_dict_size = dictionary.size();
   for (auto it = dictionary.begin(); it != dictionary.end();)
@@ -62,19 +62,19 @@ void Solver::update_dictionary(vector<int> guess, int color)
   cout << "Updated Dictionary Old Size: " << old_dict_size << " New Size: " << dictionary.size() << endl;
 }
 
-vector<int> Solver::serial_solver(GameState state)
+vector<int> Solver::serial_solver(vector<vector<int>> guesses, vector<int> colors)
 {
   cout << "Starting Solver" << endl;
-  if (state.guesses.size() > 0)
+  if (guesses.size() > 0)
   {
-    update_dictionary(state.guesses.back(), state.colors.back());
+    update_dictionary(guesses.back(), dictionary, colors.back());
   }
   vector<int> best_guess = {};
   float highest_expected_information = -1;
   for (int i = 0; i < dictionary.size(); i++)
   {
     vector<int> current_word = dictionary[i];
-    float expected_information = calculate_expected_information(current_word);
+    float expected_information = calculate_expected_information(current_word, dictionary);
     if (expected_information > highest_expected_information)
     {
       highest_expected_information = expected_information;
@@ -85,31 +85,27 @@ vector<int> Solver::serial_solver(GameState state)
   return best_guess;
 }
 
-vector<int> Solver::cuda_solver(GameState state)
+vector<int> Solver::cuda_solver(vector<vector<int>> guesses, vector<int> colors)
 {
   cout << "Starting CUDA Solver" << endl;
-  if (state.guesses.size() > 0)
+  if (guesses.size() > 0)
   {
-    update_dictionary(state.guesses.back(), state.colors.back());
+    update_dictionary(guesses.back(), dictionary, colors.back());
   }
-
   int num_words = dictionary.size();
-  int *dictionary_arr = new int[num_words * 5];
-  for (int i = 0; i < num_words * 5; i++)
-    dictionary_arr[i] = dictionary[i / 5][i % 5];
+  int *dictionary_arr = new int[num_words * word_len];
+  for (int i = 0; i < num_words * word_len; i++)
+    dictionary_arr[i] = dictionary[i / word_len][i % word_len];
 
   float *information = new float[num_words];
-  for (int i = 0; i < num_words; i++)
-    information[i] = 0;
   int *_dictionary;
   float *_information;
-  cudaMalloc((void **)&_dictionary, num_words * 5 * sizeof(int));
+  cudaMalloc((void **)&_dictionary, num_words * word_len * sizeof(int));
   cudaMalloc((void **)&_information, num_words * sizeof(float));
 
-  cudaMemcpy(_dictionary, dictionary_arr, num_words * 5 * sizeof(int), cudaMemcpyHostToDevice);
+  cudaMemcpy(_dictionary, dictionary_arr, num_words * word_len * sizeof(int), cudaMemcpyHostToDevice);
 
-  calculate_expected_information_cuda_2(num_words, 5, _dictionary, _information);
-  cudaDeviceSynchronize();
+  calculate_expected_information_cuda_shmem(num_words, word_len, _dictionary, _information);
 
   cudaMemcpy(information, _information, num_words * sizeof(float), cudaMemcpyDeviceToHost);
 

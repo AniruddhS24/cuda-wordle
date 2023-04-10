@@ -1,4 +1,5 @@
 #include "solver_kernels.h"
+#include "../wordle.h"
 #include <cuda_runtime_api.h>
 #include <cuda.h>
 #include <iostream>
@@ -6,6 +7,64 @@
 using namespace std;
 
 #define BLOCK_SIZE 32
+#define MAX_COLOR_PERM 243
+#define MAX_VOCAB_SIZE 26
+
+__device__ int set_base3_bit_cuda(int coloring, int pos, int value)
+{
+    int base = 1;
+    for (int i = 0; i < pos; i++)
+        base *= 3;
+    coloring += value * base;
+    return coloring;
+}
+
+__device__ int get_base3_bit_cuda(int coloring, int pos)
+{
+    for (int i = 0; i < pos; i++)
+        coloring /= 3;
+    return coloring % 3;
+}
+
+__device__ int generate_coloring_cuda(int *word, int *guess, int word_len)
+{
+    int coloring = 0;
+    int letters[MAX_VOCAB_SIZE] = {};
+    for (int i = 0; i < word_len; i++)
+    {
+        letters[word[i]]++;
+    }
+
+    for (int i = 0; i < word_len; i++)
+    {
+        int cur = guess[i];
+        if (guess[i] == word[i])
+        {
+            coloring = set_base3_bit_cuda(coloring, i, GREEN);
+            letters[cur]--;
+        }
+    }
+
+    for (int i = 0; i < word_len; i++)
+    {
+        int cur = guess[i];
+        if (get_base3_bit_cuda(coloring, i) == GREEN)
+        {
+            continue;
+        }
+        if (letters[cur] > 0)
+        {
+            coloring = set_base3_bit_cuda(coloring, i, YELLOW);
+            letters[cur]--;
+        }
+        else
+        {
+            coloring = set_base3_bit_cuda(coloring, i, GRAY);
+        }
+    }
+
+    return coloring;
+}
 
 __global__ void calculate_expected_information_kernel(int num_words, int word_len, int *dictionary, float *information)
 {
@@ -13,67 +72,17 @@ __global__ void calculate_expected_information_kernel(int num_words, int word_le
 
     if (tid < num_words)
     {
-        int colorings[243]; // num_colorings (3^word_len)
+        int colorings[MAX_COLOR_PERM] = {};
         int word_st = tid * word_len;
 
         for (int i = 0; i < num_words; i++)
         {
             int cur_word_st = i * word_len;
-
-            int coloring[5];   // word_len
-            int letter_ct[27]; // vocab_size
-
-            // compute coloring
-            for (int j = 0; j < word_len; j++)
-                coloring[j] = 0;
-            for (int j = 0; j < 27; j++)
-                letter_ct[j] = 0;
-            for (int j = 0; j < word_len; j++)
-                letter_ct[dictionary[word_st + j]]++;
-            for (int j = 0; j < word_len; j++)
-            {
-                int cur = dictionary[cur_word_st + j];
-                if (cur == dictionary[word_st + j])
-                {
-                    coloring[j] = 1;
-                    letter_ct[cur]--;
-                }
-            }
-
-            for (int j = 0; j < word_len; j++)
-            {
-                int cur = dictionary[cur_word_st + j];
-                if (coloring[j] == 1)
-                    continue;
-                if (letter_ct[cur] > 0)
-                {
-                    coloring[j] = 2;
-                    letter_ct[cur]--;
-                }
-                else
-                {
-                    coloring[j] = 0;
-                }
-            }
-
-            // convert coloring to base 3
-            int base = 1;
-            int c = 0;
-            for (int j = 0; j < 5; j++)
-            {
-                c += base * coloring[j];
-                base *= 3;
-            }
-
-            // if (tid == 1)
-            //     printf("tid %d Coloring: %d\n", tid, c);
-
-            // increment coloring
-            colorings[c]++;
+            colorings[generate_coloring_cuda(&dictionary[word_st], &dictionary[cur_word_st], word_len)]++;
         }
 
         float expected_info = 0.0;
-        for (int i = 0; i < 243; i++)
+        for (int i = 0; i < MAX_COLOR_PERM; i++)
         {
             float p = (float)colorings[i] / (float)num_words;
             if (p > 0)
@@ -83,67 +92,58 @@ __global__ void calculate_expected_information_kernel(int num_words, int word_le
     }
 }
 
-__global__ void calculate_expected_information_kernel_2(int num_words, int word_len, int *dictionary, float *information)
+__global__ void calculate_expected_information_kernel_shmem(int num_words, int word_len, int *dictionary, float *information)
+{
+    __shared__ int s_colorings[BLOCK_SIZE * MAX_COLOR_PERM];
+    __shared__ int s_dictionary[BLOCK_SIZE * 5];
+    int tid = blockIdx.x * blockDim.x + threadIdx.x;
+    int lid = threadIdx.x;
+    if (tid < num_words)
+    {
+        for (int i = 0; i < MAX_COLOR_PERM; i++)
+            s_colorings[MAX_COLOR_PERM * lid + i] = 0;
+        for (int i = 0; i < word_len; i++)
+            s_dictionary[word_len * lid + i] = dictionary[word_len * tid + i];
+    }
+
+    __syncthreads();
+
+    if (tid < num_words)
+    {
+        int word_st = lid * word_len;
+
+        for (int i = 0; i < num_words; i++)
+        {
+            int cur_word_st = i * word_len;
+            int c = generate_coloring_cuda(&s_dictionary[word_st], &dictionary[cur_word_st], word_len);
+            s_colorings[MAX_COLOR_PERM * lid + c]++;
+        }
+
+        float expected_info = 0.0;
+        for (int i = 0; i < MAX_COLOR_PERM; i++)
+        {
+            float p = (float)s_colorings[MAX_COLOR_PERM * lid + i] / (float)num_words;
+            if (p > 0)
+                expected_info += p * log2(1 / p);
+        }
+        information[tid] = expected_info;
+    }
+}
+
+__global__ void calculate_expected_information_kernel_percolor(int num_words, int word_len, int *dictionary, float *information)
 {
     int tid = blockIdx.x * blockDim.x + threadIdx.x;
 
-    if (tid < num_words * 243)
+    if (tid < num_words * MAX_COLOR_PERM)
     {
-        int word_id = tid / 243;
+        int word_id = tid / MAX_COLOR_PERM;
         int word_st = word_id * word_len;
-        int cur_color = tid % 243;
+        int cur_color = tid % MAX_COLOR_PERM;
         int prob = 0;
         for (int i = 0; i < num_words; i++)
         {
             int cur_word_st = i * word_len;
-
-            int coloring[5];   // word_len
-            int letter_ct[27]; // vocab_size
-
-            // compute coloring
-            for (int j = 0; j < word_len; j++)
-                coloring[j] = 0;
-            for (int j = 0; j < 27; j++)
-                letter_ct[j] = 0;
-            for (int j = 0; j < word_len; j++)
-                letter_ct[dictionary[word_st + j]]++;
-            for (int j = 0; j < word_len; j++)
-            {
-                int cur = dictionary[cur_word_st + j];
-                if (cur == dictionary[word_st + j])
-                {
-                    coloring[j] = 1;
-                    letter_ct[cur]--;
-                }
-            }
-
-            for (int j = 0; j < word_len; j++)
-            {
-                int cur = dictionary[cur_word_st + j];
-                if (coloring[j] == 1)
-                    continue;
-                if (letter_ct[cur] > 0)
-                {
-                    coloring[j] = 2;
-                    letter_ct[cur]--;
-                }
-                else
-                {
-                    coloring[j] = 0;
-                }
-            }
-
-            // convert coloring to base 3
-            int base = 1;
-            int c = 0;
-            for (int j = 0; j < 5; j++)
-            {
-                c += base * coloring[j];
-                base *= 3;
-            }
-
-            // increment coloring
-            if (c == cur_color)
+            if (generate_coloring_cuda(&dictionary[word_st], &dictionary[cur_word_st], word_len) == cur_color)
                 prob++;
         }
         float p = (float)prob / (float)num_words;
@@ -159,9 +159,16 @@ void calculate_expected_information_cuda(int num_words, int word_len, int *dicti
     calculate_expected_information_kernel<<<blockGrid, threadBlock>>>(num_words, word_len, dictionary, information);
 }
 
-void calculate_expected_information_cuda_2(int num_words, int word_len, int *dictionary, float *information)
+void calculate_expected_information_cuda_shmem(int num_words, int word_len, int *dictionary, float *information)
 {
-    dim3 blockGrid((num_words * 243 + BLOCK_SIZE - 1) / BLOCK_SIZE);
+    dim3 blockGrid((num_words + BLOCK_SIZE - 1) / BLOCK_SIZE);
     dim3 threadBlock(BLOCK_SIZE);
-    calculate_expected_information_kernel_2<<<blockGrid, threadBlock>>>(num_words, word_len, dictionary, information);
+    calculate_expected_information_kernel_shmem<<<blockGrid, threadBlock>>>(num_words, word_len, dictionary, information);
+}
+
+void calculate_expected_information_cuda_percolor(int num_words, int word_len, int *dictionary, float *information)
+{
+    dim3 blockGrid((num_words * MAX_COLOR_PERM + BLOCK_SIZE - 1) / BLOCK_SIZE);
+    dim3 threadBlock(BLOCK_SIZE);
+    calculate_expected_information_kernel_percolor<<<blockGrid, threadBlock>>>(num_words, word_len, dictionary, information);
 }
