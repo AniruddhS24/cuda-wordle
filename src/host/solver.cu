@@ -105,7 +105,7 @@ vector<int> Solver::cuda_solver(vector<vector<int>> guesses, vector<int> colors)
 
   cudaMemcpy(_dictionary, dictionary_arr, num_words * word_len * sizeof(int), cudaMemcpyHostToDevice);
 
-  calculate_expected_information_cuda_shmem(num_words, word_len, _dictionary, _information);
+  calculate_expected_information_cuda_shmem_full(num_words, word_len, _dictionary, _information);
 
   cudaMemcpy(information, _information, num_words * sizeof(float), cudaMemcpyDeviceToHost);
 

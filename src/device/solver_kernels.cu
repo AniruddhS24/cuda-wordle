@@ -7,8 +7,17 @@
 using namespace std;
 
 #define BLOCK_SIZE 32
+
 #define MAX_COLOR_PERM 243
 #define MAX_VOCAB_SIZE 26
+
+int num_color_perm(int word_len)
+{
+    int base = 1;
+    for (int i = 0; i < word_len; i++)
+        base *= 3;
+    return base;
+}
 
 __device__ int set_base3_bit_cuda(int coloring, int pos, int value)
 {
@@ -92,16 +101,55 @@ __global__ void calculate_expected_information_kernel(int num_words, int word_le
     }
 }
 
-__global__ void calculate_expected_information_kernel_shmem(int num_words, int word_len, int *dictionary, float *information)
+__global__ void calculate_expected_information_kernel_shmem(int num_words, int word_len, int color_perm, int *dictionary, float *information)
 {
-    __shared__ int s_colorings[BLOCK_SIZE * MAX_COLOR_PERM];
-    __shared__ int s_dictionary[BLOCK_SIZE * 5];
+    extern __shared__ int s[];
+    int *s_colorings = s;
     int tid = blockIdx.x * blockDim.x + threadIdx.x;
     int lid = threadIdx.x;
     if (tid < num_words)
     {
-        for (int i = 0; i < MAX_COLOR_PERM; i++)
-            s_colorings[MAX_COLOR_PERM * lid + i] = 0;
+        for (int i = 0; i < color_perm; i++)
+            s_colorings[color_perm * lid + i] = 0;
+    }
+
+    __syncthreads();
+
+    if (tid < num_words)
+    {
+        int word_st = lid * word_len;
+
+        for (int i = 0; i < num_words; i++)
+        {
+            int cur_word_st = i * word_len;
+            int c = generate_coloring_cuda(&dictionary[word_st], &dictionary[cur_word_st], word_len);
+            s_colorings[color_perm * lid + c]++;
+        }
+
+        float expected_info = 0.0;
+        for (int i = 0; i < color_perm; i++)
+        {
+            float p = (float)s_colorings[color_perm * lid + i] / (float)num_words;
+            if (p > 0)
+                expected_info += p * log2(1 / p);
+        }
+        information[tid] = expected_info;
+    }
+}
+
+__global__ void calculate_expected_information_kernel_shmem_full(int num_words, int word_len, int color_perm, int *dictionary, float *information)
+{
+    extern __shared__ int s[];
+    int *s_colorings = s;
+    int *s_dictionary = (int *)&s_colorings[BLOCK_SIZE * color_perm];
+    float *s_information = (float *)&s_dictionary[BLOCK_SIZE * word_len];
+
+    int tid = blockIdx.x * blockDim.x + threadIdx.x;
+    int lid = threadIdx.x;
+    if (tid < num_words)
+    {
+        for (int i = 0; i < color_perm; i++)
+            s_colorings[color_perm * lid + i] = 0;
         for (int i = 0; i < word_len; i++)
             s_dictionary[word_len * lid + i] = dictionary[word_len * tid + i];
     }
@@ -116,18 +164,22 @@ __global__ void calculate_expected_information_kernel_shmem(int num_words, int w
         {
             int cur_word_st = i * word_len;
             int c = generate_coloring_cuda(&s_dictionary[word_st], &dictionary[cur_word_st], word_len);
-            s_colorings[MAX_COLOR_PERM * lid + c]++;
+            s_colorings[color_perm * lid + c]++;
         }
 
         float expected_info = 0.0;
-        for (int i = 0; i < MAX_COLOR_PERM; i++)
+        for (int i = 0; i < color_perm; i++)
         {
-            float p = (float)s_colorings[MAX_COLOR_PERM * lid + i] / (float)num_words;
+            float p = (float)s_colorings[color_perm * lid + i] / (float)num_words;
             if (p > 0)
                 expected_info += p * log2(1 / p);
         }
-        information[tid] = expected_info;
+        s_information[lid] = expected_info;
     }
+
+    __syncthreads();
+
+    information[tid] = s_information[lid];
 }
 
 __global__ void calculate_expected_information_kernel_percolor(int num_words, int word_len, int *dictionary, float *information)
@@ -163,7 +215,16 @@ void calculate_expected_information_cuda_shmem(int num_words, int word_len, int 
 {
     dim3 blockGrid((num_words + BLOCK_SIZE - 1) / BLOCK_SIZE);
     dim3 threadBlock(BLOCK_SIZE);
-    calculate_expected_information_kernel_shmem<<<blockGrid, threadBlock>>>(num_words, word_len, dictionary, information);
+    int color_perm = num_color_perm(word_len);
+    calculate_expected_information_kernel_shmem<<<blockGrid, threadBlock, BLOCK_SIZE * color_perm * sizeof(int)>>>(num_words, word_len, color_perm, dictionary, information);
+}
+
+void calculate_expected_information_cuda_shmem_full(int num_words, int word_len, int *dictionary, float *information)
+{
+    dim3 blockGrid((num_words + BLOCK_SIZE - 1) / BLOCK_SIZE);
+    dim3 threadBlock(BLOCK_SIZE);
+    int color_perm = num_color_perm(word_len);
+    calculate_expected_information_kernel_shmem_full<<<blockGrid, threadBlock, BLOCK_SIZE * color_perm * sizeof(int) + BLOCK_SIZE * word_len * sizeof(int) + BLOCK_SIZE * sizeof(float)>>>(num_words, word_len, color_perm, dictionary, information);
 }
 
 void calculate_expected_information_cuda_percolor(int num_words, int word_len, int *dictionary, float *information)
