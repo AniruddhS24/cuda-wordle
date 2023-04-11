@@ -29,12 +29,12 @@ struct Dictionary
 struct GameState
 {
     std::vector<std::vector<int>> guesses;
-    std::vector<std::vector<int>> colors;
+    std::vector<int> colors;
 };
 
 class Wordle
 {
-    public:
+public:
     std::string vocabulary_file;
     std::string word_file;
     std::vector<std::string> (*tokenizer)(std::string);
@@ -43,16 +43,20 @@ class Wordle
     std::vector<int> target_word;
     GameState state;
 
-
-    Wordle(std::string vocabulary_file, std::string word_file, std::vector<std::string> (*tokenizer)(std::string)) : vocabulary_file(vocabulary_file), word_file(word_file), tokenizer(tokenizer) {};
+    Wordle(std::string vocabulary_file, std::string word_file, std::vector<std::string> (*tokenizer)(std::string)) : vocabulary_file(vocabulary_file), word_file(word_file), tokenizer(tokenizer){};
 
     void load_vocabulary();
     void load_dictionary();
+    static int set_coloring_bit(int coloring, int pos, int value);
+    static int get_coloring_bit(int coloring, int pos);
+    static int generate_coloring(std::vector<int> word, std::vector<int> guess);
+    static void print_coloring(int coloring);
     std::vector<int> encode_word(std::string word);
     std::string decode_word(std::vector<int> ids);
+
     void set_target_word();
     std::vector<int> get_target_word();
-    std::vector<int> post_guess(std::string guess);
+    int post_guess(std::string guess);
 };
 
 std::vector<std::string> word_tokenizer(std::string input);

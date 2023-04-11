@@ -8,6 +8,8 @@ struct Arguments
     std::string vocab_filepath;
     std::string dictionary_filepath;
     bool suppress_output;
+    bool interactive;
+    bool use_gpu;
     // more flags and stuff for diff implementations
 };
 
