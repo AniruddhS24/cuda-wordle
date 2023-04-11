@@ -12,6 +12,7 @@ int main(int argc, char **argv)
 {
 
     auto start_e2e = std::chrono::high_resolution_clock::now();
+    srand(std::time(nullptr));
     Arguments args = parse_arguments(argc, argv);
     Wordle wordle{args.vocab_filepath, args.dictionary_filepath, word_tokenizer};
     wordle.load_vocabulary();
