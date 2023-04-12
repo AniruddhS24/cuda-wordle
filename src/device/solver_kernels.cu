@@ -204,11 +204,68 @@ __global__ void calculate_expected_information_kernel_percolor(int num_words, in
     }
 }
 
+float calculate_occupancy_shmem(void (*kernel)(int, int, int, int*, float*), int num_active_threads) {
+    int devId = 0;
+    cudaSetDevice(devId);
+
+    cudaDeviceProp devProp;
+    cudaGetDeviceProperties(&devProp, devId);
+
+    // max potential warps based on device properties
+    int num_sm = devProp.multiProcessorCount;
+    int max_block_per_sm;
+    cudaOccupancyMaxActiveBlocksPerMultiprocessor(
+        &max_block_per_sm,
+        kernel,
+        BLOCK_SIZE,
+        0);
+    int max_warps_per_sm = devProp.maxThreadsPerMultiProcessor / devProp.warpSize;
+    int max_num_warps = max_warps_per_sm * max_block_per_sm * num_sm;
+
+    // actual warps used by kernel invocation
+    int num_active_warps = (num_active_threads + devProp.warpSize - 1) / devProp.warpSize;
+    float occupancy = (float)num_active_warps / max_num_warps;
+
+    std::cout << "Occupancy: " << occupancy << std::endl;
+    return occupancy;
+    
+}
+
+float calculate_occupancy(void (*kernel)(int, int, int*, float*), int num_active_threads) {
+    int devId = 0;
+    cudaSetDevice(devId);
+
+    cudaDeviceProp devProp;
+    cudaGetDeviceProperties(&devProp, devId);
+
+    // max potential warps based on device properties
+    int num_sm = devProp.multiProcessorCount;
+    int max_block_per_sm;
+    cudaOccupancyMaxActiveBlocksPerMultiprocessor(
+        &max_block_per_sm,
+        kernel,
+        BLOCK_SIZE,
+        0);
+    int max_warps_per_sm = devProp.maxThreadsPerMultiProcessor / devProp.warpSize;
+    int max_num_warps = max_warps_per_sm * max_block_per_sm * num_sm;
+
+    // actual warps used by kernel invocation
+    int num_active_warps = (num_active_threads + devProp.warpSize - 1) / devProp.warpSize;
+    float occupancy = (float)num_active_warps / max_num_warps;
+
+    std::cout << "Occupancy: " << occupancy << std::endl;
+    return occupancy;
+    
+}
+
 void calculate_expected_information_cuda(int num_words, int word_len, int *dictionary, float *information)
 {
     dim3 blockGrid((num_words + BLOCK_SIZE - 1) / BLOCK_SIZE);
     dim3 threadBlock(BLOCK_SIZE);
+
     calculate_expected_information_kernel<<<blockGrid, threadBlock>>>(num_words, word_len, dictionary, information);
+    cudaDeviceSynchronize(); // wait for kernel to complete
+    calculate_occupancy(calculate_expected_information_kernel, num_words);
 }
 
 void calculate_expected_information_cuda_shmem(int num_words, int word_len, int *dictionary, float *information)
@@ -217,6 +274,7 @@ void calculate_expected_information_cuda_shmem(int num_words, int word_len, int 
     dim3 threadBlock(BLOCK_SIZE);
     int color_perm = num_color_perm(word_len);
     calculate_expected_information_kernel_shmem<<<blockGrid, threadBlock, BLOCK_SIZE * color_perm * sizeof(int)>>>(num_words, word_len, color_perm, dictionary, information);
+    calculate_occupancy_shmem(calculate_expected_information_kernel_shmem, num_words);
 }
 
 void calculate_expected_information_cuda_shmem_full(int num_words, int word_len, int *dictionary, float *information)
@@ -225,6 +283,7 @@ void calculate_expected_information_cuda_shmem_full(int num_words, int word_len,
     dim3 threadBlock(BLOCK_SIZE);
     int color_perm = num_color_perm(word_len);
     calculate_expected_information_kernel_shmem_full<<<blockGrid, threadBlock, BLOCK_SIZE * color_perm * sizeof(int) + BLOCK_SIZE * word_len * sizeof(int) + BLOCK_SIZE * sizeof(float)>>>(num_words, word_len, color_perm, dictionary, information);
+    calculate_occupancy_shmem(calculate_expected_information_kernel_shmem_full, num_words);
 }
 
 void calculate_expected_information_cuda_percolor(int num_words, int word_len, int *dictionary, float *information)
@@ -232,4 +291,6 @@ void calculate_expected_information_cuda_percolor(int num_words, int word_len, i
     dim3 blockGrid((num_words * MAX_COLOR_PERM + BLOCK_SIZE - 1) / BLOCK_SIZE);
     dim3 threadBlock(BLOCK_SIZE);
     calculate_expected_information_kernel_percolor<<<blockGrid, threadBlock>>>(num_words, word_len, dictionary, information);
+    cudaDeviceSynchronize(); // wait for kernel to complete
+    calculate_occupancy(calculate_expected_information_kernel_percolor, num_words * MAX_COLOR_PERM);
 }

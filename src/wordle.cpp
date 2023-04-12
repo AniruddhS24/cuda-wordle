@@ -84,7 +84,6 @@ void Wordle::set_target_word()
 {
     int index = rand() % dictionary.potential_words.size();
     target_word = dictionary.potential_words[index];
-    cout << target_word.size() << endl;
 }
 
 vector<int> Wordle::get_target_word()

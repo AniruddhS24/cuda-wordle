@@ -12,7 +12,6 @@ using namespace std;
 float calculate_expected_information(vector<int> &word, vector<vector<int>> &dictionary)
 {
   unordered_map<int, int> colorings;
-  // cout << "Calculating Expected Info ...";
   for (int i = 0; i < dictionary.size(); i++)
   {
     vector<int> current_word = dictionary[i];
@@ -38,7 +37,6 @@ float calculate_expected_information(vector<int> &word, vector<vector<int>> &dic
       expected_information += p * log2(1 / p);
     }
   }
-  // cout << "Finished E[I]" << endl;
   return expected_information;
 }
 
@@ -59,12 +57,10 @@ void update_dictionary(vector<int> &guess, vector<vector<int>> &dictionary, int 
   }
   float p = float(dictionary.size()) / old_dict_size;
   cout << "Actual Information: " << log2(1 / p) << endl;
-  cout << "Updated Dictionary Old Size: " << old_dict_size << " New Size: " << dictionary.size() << endl;
 }
 
 vector<int> Solver::serial_solver(vector<vector<int>> guesses, vector<int> colors)
 {
-  cout << "Starting Solver" << endl;
   if (guesses.size() > 0)
   {
     update_dictionary(guesses.back(), dictionary, colors.back());
