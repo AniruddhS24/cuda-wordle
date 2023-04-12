@@ -1,7 +1,9 @@
 #include "run_args.h"
 #include "wordle.h"
 #include "host/solver.h"
+#include "util.h"
 #include <iostream>
+#include <time.h>
 #include <vector>
 #include <string>
 #include <chrono>
@@ -19,12 +21,16 @@ int main(int argc, char **argv)
     wordle.load_dictionary();
     wordle.set_target_word();
 
-    vector<int> tmp = wordle.get_target_word();
-    string actual = wordle.decode_word(tmp);
-    cout << "Target Word: " << actual << endl;
-    cout << endl;
+    // for (const auto &p : wordle.vocab.word_to_id)
+    //     cout << p.first << " " << p.second << endl;
+    // vector<int> tmp = wordle.get_target_word();
+    // for (int i = 0; i < tmp.size(); i++)
+    //     cout << tmp[i] << " ";
+    // cout << endl;
 
-    Solver solver{wordle.vocab.size, wordle.dictionary.potential_words};
+    // cout << "Actual word is: " << wordle.decode_word(wordle.get_target_word()) << endl;
+
+    Solver solver{wordle.vocab.size, 5, wordle.dictionary.potential_words};
 
 
     int num_guesses = 1;
@@ -34,9 +40,9 @@ int main(int argc, char **argv)
         vector<int> solver_guess = {};
         auto start_solver = chrono::high_resolution_clock::now();
         if (args.use_gpu) {
-          solver_guess  = solver.cuda_solver(wordle.state);        
+          solver_guess  = solver.cuda_solver(wordle.state.guesses, wordle.state.colors);        
         } else {
-          solver_guess = solver.serial_solver(wordle.state);
+          solver_guess = solver.serial_solver(wordle.state.guesses, wordle.state.colors);
         }
         auto end_solver = chrono::high_resolution_clock::now();
         cout << "Solver Iteration Time: " << std::chrono::duration_cast<std::chrono::nanoseconds>(end_solver - start_solver).count() << endl;
@@ -52,11 +58,20 @@ int main(int argc, char **argv)
         
         int color = wordle.post_guess(guess);
         cout << "Colors: " << endl;
+        for (int i = 0; i < 5; i++)
+            cout << guess[i] << " ";
+        cout << endl;
         bool solved = true;
-        for (int i = 0; i < tmp.size(); i++)
+        for (int i = 0; i < 5; i++)
         {
-            cout << Wordle::get_coloring_bit(color, i) << " ";
-            if (Wordle::get_coloring_bit(color, i) != GREEN)
+            int bit = get_base3_bit(color, i);
+            if (bit == GREEN)
+                cout << "G ";
+            else if (bit == YELLOW)
+                cout << "Y ";
+            else
+                cout << "  ";
+            if (get_base3_bit(color, i) != GREEN)
             {
                 solved = false;
             }

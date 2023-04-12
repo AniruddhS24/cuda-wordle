@@ -47,8 +47,6 @@ public:
 
     void load_vocabulary();
     void load_dictionary();
-    static int set_coloring_bit(int coloring, int pos, int value);
-    static int get_coloring_bit(int coloring, int pos);
     static int generate_coloring(std::vector<int> word, std::vector<int> guess);
     static void print_coloring(int coloring);
     std::vector<int> encode_word(std::string word);
