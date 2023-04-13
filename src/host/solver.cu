@@ -40,7 +40,7 @@ float calculate_expected_information(vector<int> &word, vector<vector<int>> &dic
   return expected_information;
 }
 
-void update_dictionary(vector<int> &guess, vector<vector<int>> &dictionary, int color)
+void Solver::update_dictionary(vector<int> guess, int color)
 {
   int old_dict_size = dictionary.size();
   for (auto it = dictionary.begin(); it != dictionary.end();)
@@ -61,10 +61,10 @@ void update_dictionary(vector<int> &guess, vector<vector<int>> &dictionary, int 
 
 vector<int> Solver::serial_solver(vector<vector<int>> guesses, vector<int> colors)
 {
-  if (guesses.size() > 0)
-  {
-    update_dictionary(guesses.back(), dictionary, colors.back());
-  }
+  // if (guesses.size() > 0)
+  // {
+  //   update_dictionary(guesses.back(), dictionary, colors.back());
+  // }
   vector<int> best_guess = {};
   float highest_expected_information = -1;
   for (int i = 0; i < dictionary.size(); i++)
@@ -81,13 +81,12 @@ vector<int> Solver::serial_solver(vector<vector<int>> guesses, vector<int> color
   return best_guess;
 }
 
-vector<int> Solver::cuda_solver(vector<vector<int>> guesses, vector<int> colors)
+vector<int> Solver::cuda_solver(vector<vector<int>> guesses, vector<int> colors, bool shmem, bool multi_color)
 {
-  cout << "Starting CUDA Solver" << endl;
-  if (guesses.size() > 0)
-  {
-    update_dictionary(guesses.back(), dictionary, colors.back());
-  }
+  // if (guesses.size() > 0)
+  // {
+  //   update_dictionary(guesses.back(), dictionary, colors.back());
+  // }
   int num_words = dictionary.size();
   int *dictionary_arr = new int[num_words * word_len];
   for (int i = 0; i < num_words * word_len; i++)
@@ -101,7 +100,14 @@ vector<int> Solver::cuda_solver(vector<vector<int>> guesses, vector<int> colors)
 
   cudaMemcpy(_dictionary, dictionary_arr, num_words * word_len * sizeof(int), cudaMemcpyHostToDevice);
 
-  calculate_expected_information_cuda_shmem_full(num_words, word_len, _dictionary, _information);
+  if (shmem) {
+    calculate_expected_information_cuda_shmem_full(num_words, word_len, _dictionary, _information);
+  } else if (multi_color) {
+    calculate_expected_information_cuda_percolor(num_words, word_len, _dictionary, _information);
+  } else {
+    calculate_expected_information_cuda(num_words, word_len, _dictionary, _information);
+  }
+  
 
   cudaMemcpy(information, _information, num_words * sizeof(float), cudaMemcpyDeviceToHost);
 
@@ -118,5 +124,6 @@ vector<int> Solver::cuda_solver(vector<vector<int>> guesses, vector<int> colors)
     }
   }
   cout << "Expected Information: " << highest_expected_information << endl;
+  // update_dictionary(guesses.back(), dictionary, colors.back());
   return best_guess;
 }

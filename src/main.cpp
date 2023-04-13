@@ -14,8 +14,8 @@ int main(int argc, char **argv)
 {
 
     auto start_e2e = std::chrono::high_resolution_clock::now();
-    srand(std::time(nullptr));
     Arguments args = parse_arguments(argc, argv);
+    srand(args.seed);
     Wordle wordle{args.vocab_filepath, args.dictionary_filepath, word_tokenizer};
     wordle.load_vocabulary();
     wordle.load_dictionary();
@@ -28,7 +28,8 @@ int main(int argc, char **argv)
     //     cout << tmp[i] << " ";
     // cout << endl;
 
-    // cout << "Actual word is: " << wordle.decode_word(wordle.get_target_word()) << endl;
+    cout << "Actual word is: " << wordle.decode_word(wordle.get_target_word()) << endl;
+    cout << endl;
 
     Solver solver{wordle.vocab.size, 5, wordle.dictionary.potential_words};
 
@@ -40,7 +41,7 @@ int main(int argc, char **argv)
         vector<int> solver_guess = {};
         auto start_solver = chrono::high_resolution_clock::now();
         if (args.use_gpu) {
-          solver_guess  = solver.cuda_solver(wordle.state.guesses, wordle.state.colors);        
+          solver_guess  = solver.cuda_solver(wordle.state.guesses, wordle.state.colors, args.shmem, args.colors);        
         } else {
           solver_guess = solver.serial_solver(wordle.state.guesses, wordle.state.colors);
         }
@@ -76,6 +77,8 @@ int main(int argc, char **argv)
                 solved = false;
             }
         }
+        cout << endl;
+        solver.update_dictionary(wordle.encode_word(guess), color);
         cout << endl;
 
         if (solved)

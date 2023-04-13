@@ -10,6 +10,9 @@ struct Arguments
     bool suppress_output;
     bool interactive;
     bool use_gpu;
+    bool shmem;
+    bool colors;
+    int seed;
     // more flags and stuff for diff implementations
 };
 
