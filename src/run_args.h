@@ -12,6 +12,7 @@ struct Arguments
     bool use_gpu;
     bool shmem;
     bool colors;
+    bool sentence;
     int seed;
     // more flags and stuff for diff implementations
 };

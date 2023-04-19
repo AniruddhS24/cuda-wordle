@@ -16,7 +16,7 @@ int main(int argc, char **argv)
     auto start_e2e = std::chrono::high_resolution_clock::now();
     Arguments args = parse_arguments(argc, argv);
     srand(args.seed);
-    Wordle wordle{args.vocab_filepath, args.dictionary_filepath, word_tokenizer};
+    Wordle wordle{args.vocab_filepath, args.dictionary_filepath, word_tokenizer, args.sentence};
     wordle.load_vocabulary();
     wordle.load_dictionary();
     wordle.set_target_word();
@@ -41,9 +41,26 @@ int main(int argc, char **argv)
         vector<int> solver_guess = {};
         auto start_solver = chrono::high_resolution_clock::now();
         if (args.use_gpu) {
-          solver_guess  = solver.cuda_solver(wordle.state.guesses, wordle.state.colors, args.shmem, args.colors);        
+          vector<pair<float, vector<int>>> p  = solver.cuda_solver(wordle.state.guesses, wordle.state.colors, args.shmem, args.colors);   
+          if (! args.suppress_output)  {
+            for (int i = 0; i < p.size(); i++) {
+              cout << "Word: " << wordle.decode_word(p[i].second) << " Expected Information: " << p[i].first << endl;
+            }
+          }
+          solver_guess = p.back().second;   
         } else {
-          solver_guess = solver.serial_solver(wordle.state.guesses, wordle.state.colors);
+          vector<pair<float, pair<vector<int>, vector<int>>>> p = solver.serial_solver(wordle.state.guesses, wordle.state.colors);
+          if (! args.suppress_output)  {
+            for (int i = 0; i < p.size(); i++) {
+              cout << "Word: " << wordle.decode_word(p[i].second.first) << " Expected Information: " << p[i].first << endl;
+              for (int j = 0; j < p[i].second.second.size(); j++) {
+                cout << p[i].second.second[j] << " ";
+              }
+              cout << endl;
+            }
+            
+          }
+          solver_guess = p.back().second.first;
         }
         auto end_solver = chrono::high_resolution_clock::now();
         cout << "Solver Iteration Time: " << std::chrono::duration_cast<std::chrono::nanoseconds>(end_solver - start_solver).count() << endl;

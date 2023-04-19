@@ -13,11 +13,11 @@ Arguments parse_arguments(int argc, char **argv)
         {"suppress_output", no_argument, NULL, 0}};
 
     int opt = 0;
-    while ((opt = getopt_long(argc, argv, "d:v:s:igmc", long_options, &long_option_index)) != -1)
+    while ((opt = getopt_long(argc, argv, "d:v:s:igmcto", long_options, &long_option_index)) != -1)
     {
         switch (opt)
         {
-        case 0:
+        case 'o':
             args.suppress_output = true;
             break;
         case 'd':
@@ -42,6 +42,9 @@ Arguments parse_arguments(int argc, char **argv)
           break;
         case 's':
           args.seed = atoi(optarg);
+          break;
+        case 't':
+          args.sentence = true;
           break;
         }
     }

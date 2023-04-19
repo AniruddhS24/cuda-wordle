@@ -9,35 +9,26 @@
 
 using namespace std;
 
-float calculate_expected_information(vector<int> &word, vector<vector<int>> &dictionary)
+vector<int> calculate_expected_information(vector<int> &word, vector<vector<int>> &dictionary)
 {
-  unordered_map<int, int> colorings;
+  vector<int> colorings(243);
   for (int i = 0; i < dictionary.size(); i++)
   {
     vector<int> current_word = dictionary[i];
     int coloring = Wordle::generate_coloring(word, current_word);
-    if (colorings.count(coloring))
-    {
-      colorings[coloring]++;
-    }
-    else
-    {
-      colorings[coloring] = 1;
-    }
+    colorings[coloring]++;
   }
 
-  float expected_information = 0.0f;
-  for (auto it = colorings.begin(); it != colorings.end(); it++)
-  {
-    int key = it->first;
-    int occurances = it->second;
-    float p = float(occurances) / dictionary.size();
-    if (p > 0)
-    {
-      expected_information += p * log2(1 / p);
-    }
-  }
-  return expected_information;
+  // float expected_information = 0.0f;
+  // for (int occurances : colorings)
+  // {
+  //   float p = float(occurances) / dictionary.size();
+  //   if (p > 0)
+  //   {
+  //     expected_information += p * log2(1 / p);
+  //   }
+  // }
+  return colorings;
 }
 
 void Solver::update_dictionary(vector<int> guess, int color)
@@ -56,37 +47,45 @@ void Solver::update_dictionary(vector<int> guess, int color)
     }
   }
   float p = float(dictionary.size()) / old_dict_size;
+  cout << "Old Dict Size: " << old_dict_size << " New Dict Size: " << dictionary.size() << endl;
   cout << "Actual Information: " << log2(1 / p) << endl;
 }
 
-vector<int> Solver::serial_solver(vector<vector<int>> guesses, vector<int> colors)
+vector<pair<float, pair<vector<int>, vector<int>>>> Solver::serial_solver(vector<vector<int>> guesses, vector<int> colors)
 {
-  // if (guesses.size() > 0)
-  // {
-  //   update_dictionary(guesses.back(), dictionary, colors.back());
-  // }
+  vector<pair<float, pair<vector<int>, vector<int>>>> info = {};
   vector<int> best_guess = {};
   float highest_expected_information = -1;
   for (int i = 0; i < dictionary.size(); i++)
   {
     vector<int> current_word = dictionary[i];
-    float expected_information = calculate_expected_information(current_word, dictionary);
+    vector<int> colorings = calculate_expected_information(current_word, dictionary);
+
+    float expected_information = 0.0f;
+    for (int occurances : colorings)
+    {
+      float p = float(occurances) / dictionary.size();
+      if (p > 0)
+      {
+        expected_information += p * log2(1 / p);
+      }
+    }
+
     if (expected_information > highest_expected_information)
     {
       highest_expected_information = expected_information;
       best_guess = current_word;
     }
+    info.push_back({expected_information, {current_word, colorings}});
   }
-  cout << "Expected Information: " << highest_expected_information << endl;
-  return best_guess;
+
+  sort(info.begin(), info.end());
+  return info;
 }
 
-vector<int> Solver::cuda_solver(vector<vector<int>> guesses, vector<int> colors, bool shmem, bool multi_color)
+vector<pair<float, vector<int>>> Solver::cuda_solver(vector<vector<int>> guesses, vector<int> colors, bool shmem, bool multi_color)
 {
-  // if (guesses.size() > 0)
-  // {
-  //   update_dictionary(guesses.back(), dictionary, colors.back());
-  // }
+
   int num_words = dictionary.size();
   int *dictionary_arr = new int[num_words * word_len];
   for (int i = 0; i < num_words * word_len; i++)
@@ -111,6 +110,7 @@ vector<int> Solver::cuda_solver(vector<vector<int>> guesses, vector<int> colors,
 
   cudaMemcpy(information, _information, num_words * sizeof(float), cudaMemcpyDeviceToHost);
 
+  vector<pair<float, vector<int>>> info = {};
   vector<int> best_guess = {};
   float highest_expected_information = -1;
   for (int i = 0; i < dictionary.size(); i++)
@@ -122,8 +122,8 @@ vector<int> Solver::cuda_solver(vector<vector<int>> guesses, vector<int> colors,
       highest_expected_information = expected_information;
       best_guess = current_word;
     }
+    info.push_back({expected_information, current_word});
   }
-  cout << "Expected Information: " << highest_expected_information << endl;
-  // update_dictionary(guesses.back(), dictionary, colors.back());
-  return best_guess;
+  sort(info.begin(), info.end());
+  return info;
 }
