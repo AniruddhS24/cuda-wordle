@@ -11,7 +11,7 @@ using namespace std;
 
 vector<int> calculate_expected_information(vector<int> &word, vector<vector<int>> &dictionary)
 {
-  vector<int> colorings(243);
+  vector<int> colorings(59049);
   for (int i = 0; i < dictionary.size(); i++)
   {
     vector<int> current_word = dictionary[i];
@@ -59,6 +59,7 @@ vector<pair<float, pair<vector<int>, vector<int>>>> Solver::serial_solver(vector
   for (int i = 0; i < dictionary.size(); i++)
   {
     vector<int> current_word = dictionary[i];
+    // cout << "calculating expected info" << endl;
     vector<int> colorings = calculate_expected_information(current_word, dictionary);
 
     float expected_information = 0.0f;

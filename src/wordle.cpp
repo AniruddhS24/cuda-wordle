@@ -90,6 +90,7 @@ void Wordle::set_target_word()
 {
     int index = rand() % dictionary.potential_words.size();
     target_word = dictionary.potential_words[index];
+    target_word = encode_word("swash");
     cout << endl;
 }
 
