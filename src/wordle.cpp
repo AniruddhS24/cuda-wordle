@@ -3,6 +3,7 @@
 #include <iostream>
 #include <fstream>
 #include <vector>
+#include <sstream>
 #include <string>
 #include <random>
 #include <map>
@@ -22,7 +23,7 @@ void Wordle::load_dictionary()
     }
 
     string word;
-    while (potential_words_file >> word)
+    while (getline(potential_words_file, word))
     {
         dictionary.potential_words_str.push_back(word);
         dictionary.potential_words.push_back(encode_word(word));
@@ -74,9 +75,14 @@ vector<int> Wordle::encode_word(string word)
 std::string Wordle::decode_word(vector<int> ids)
 {
     string res = "";
-    for (int i = 0; i < ids.size(); i++)
-        if (vocab.id_to_word.count(ids[i]))
-            res += vocab.id_to_word[ids[i]];
+    for (int i = 0; i < ids.size(); i++) {
+        if (vocab.id_to_word.count(ids[i])) {
+          res += vocab.id_to_word[ids[i]];
+          if (sentence && i != ids.size() - 1) {
+            res += " ";
+          }
+        }
+    }
     return res;
 }
 
@@ -84,6 +90,8 @@ void Wordle::set_target_word()
 {
     int index = rand() % dictionary.potential_words.size();
     target_word = dictionary.potential_words[index];
+    target_word = encode_word("swash");
+    cout << endl;
 }
 
 vector<int> Wordle::get_target_word()
@@ -165,7 +173,24 @@ int Wordle::post_guess(string guess_str)
 vector<string> word_tokenizer(string input)
 {
     vector<string> res;
-    for (int i = 0; i < input.length(); i++)
+    bool sentence = false;
+    for (char c : input) {
+      if (isspace(c)) {
+        sentence = true;
+        break;
+      }
+    }
+
+    if (sentence) {
+      stringstream ss(input);
+      string token;
+      while (getline(ss, token, ' ')) {
+          res.push_back(token);
+      }
+    } else {
+      for (int i = 0; i < input.length(); i++)
         res.push_back(string(1, input[i]));
+    }
+    
     return res;
 }

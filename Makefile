@@ -12,10 +12,16 @@ build_kernel:
 	nvcc src/device/solver_kernels.cu -o solver_kernels.o -c
 
 run_gpu:
-	./solver -d ./basic_dictionary/potential_words.txt -v ./basic_dictionary/vocab.txt -g
+	./solver -d ./basic_dictionary/potential_words.txt -v ./basic_dictionary/vocab.txt -g 
+
+run_gpu_test:
+	./solver -d ./test_dictionary/potential_words.txt -v ./test_dictionary/vocab.txt -g -t
 
 run_seq:
-	./solver -d ./basic_dictionary/potential_words.txt -v ./basic_dictionary/vocab.txt
+	./solver -d ./basic_dictionary/potential_words.txt -v ./basic_dictionary/vocab.txt 
+
+run_seq_test:
+	./solver -d ./test_dictionary/potential_words.txt -v ./test_dictionary/vocab.txt -t
 	
 link:
 	nvcc main.o run_args.o wordle.o util.o solver.o solver_kernels.o -o solver

@@ -6,7 +6,7 @@
 
 using namespace std;
 
-#define BLOCK_SIZE 32
+#define BLOCK_SIZE 128
 
 #define MAX_VOCAB_SIZE 26
 #define OPTIM_COLOR_CACHE 64
@@ -327,9 +327,16 @@ float calculate_occupancy(void (*kernel)(int, int, int, int *, float *, int *), 
         0);
     int max_warps_per_sm = devProp.maxThreadsPerMultiProcessor / devProp.warpSize;
     int max_num_warps = max_warps_per_sm * max_block_per_sm * num_sm;
+    // cout << "Max Threads per MultiProcesor " << devProp.maxThreadsPerMultiProcessor << endl;
+    // cout << "Max Warps Per SM " << max_warps_per_sm << endl;
+    // cout << "Max Block Per SM " << max_block_per_sm << endl;
+    // cout << "Num SM " << num_sm << endl; 
 
     // actual warps used by kernel invocation
     int num_active_warps = (num_active_threads + devProp.warpSize - 1) / devProp.warpSize;
+    // cout << "Warp Size " << devProp.warpSize << endl;
+    // cout << "Num Active Threads " << (num_active_threads) << endl;
+    // cout << "Max Num Warps " << max_num_warps << endl;
     float occupancy = (float)num_active_warps / max_num_warps;
 
     std::cout << "Occupancy: " << occupancy << std::endl;
