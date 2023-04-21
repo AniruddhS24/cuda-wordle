@@ -37,13 +37,14 @@ class Wordle
 public:
     std::string vocabulary_file;
     std::string word_file;
+    bool sentence;
     std::vector<std::string> (*tokenizer)(std::string);
     Vocabulary vocab;
     Dictionary dictionary;
     std::vector<int> target_word;
     GameState state;
 
-    Wordle(std::string vocabulary_file, std::string word_file, std::vector<std::string> (*tokenizer)(std::string)) : vocabulary_file(vocabulary_file), word_file(word_file), tokenizer(tokenizer){};
+    Wordle(std::string vocabulary_file, std::string word_file, std::vector<std::string> (*tokenizer)(std::string), bool sentence) : vocabulary_file(vocabulary_file), word_file(word_file), tokenizer(tokenizer), sentence(sentence){};
 
     void load_vocabulary();
     void load_dictionary();
