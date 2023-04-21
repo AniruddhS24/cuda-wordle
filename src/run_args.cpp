@@ -13,12 +13,13 @@ Arguments parse_arguments(int argc, char **argv)
         {"suppress_output", no_argument, NULL, 0}};
 
     int opt = 0;
+    args.suppress_output = true;
     while ((opt = getopt_long(argc, argv, "d:v:s:igmcto", long_options, &long_option_index)) != -1)
     {
         switch (opt)
         {
         case 'o':
-            args.suppress_output = true;
+            args.suppress_output = false;
             break;
         case 'd':
           args.dictionary_filepath = optarg;
