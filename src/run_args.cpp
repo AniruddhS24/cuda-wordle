@@ -12,7 +12,7 @@ Arguments parse_arguments(int argc, char **argv)
         {"suppress_output", no_argument, NULL, 0}};
 
     int opt = 0;
-    while ((opt = getopt_long(argc, argv, "d:v:", long_options, &long_option_index)) != -1)
+    while ((opt = getopt_long(argc, argv, "d:v:ig", long_options, &long_option_index)) != -1)
     {
         switch (opt)
         {
@@ -20,10 +20,19 @@ Arguments parse_arguments(int argc, char **argv)
             args.suppress_output = true;
             break;
         case 'd':
-            args.dictionary_filepath = optarg;
-         case 'v':
-            args.vocab_filepath = optarg;
+          args.dictionary_filepath = optarg;
+          break;
+        case 'v':
+          args.vocab_filepath = optarg;
+          break;
+        case 'i':
+          args.interactive = true;
+          break;
+        case 'g':
+          args.use_gpu = true;
+          break;
         }
+
     }
 
     return args;
