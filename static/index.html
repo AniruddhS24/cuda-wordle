@@ -1,0 +1,455 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Wordle</title>
+    <!-- <link rel="stylesheet" href="style.css" /> -->
+    <link
+      href="https://cdnjs.cloudflare.com/ajax/libs/toastr.js/latest/toastr.min.css"
+      rel="stylesheet"
+    />
+    <link
+      rel="stylesheet"
+      href="https://cdnjs.cloudflare.com/ajax/libs/animate.css/4.1.1/animate.min.css"
+    />
+  </head>
+  <style>
+    .container {
+      display: flex;
+      justify-content: center;
+    }
+
+    .box {
+      margin: 10px;
+    }
+
+    h1 {
+      text-align: center;
+    }
+
+    #game-board {
+      display: flex;
+      align-items: center;
+      flex-direction: column;
+    }
+
+    .letter-box {
+      border: 2px solid gray;
+      border-radius: 3px;
+      margin: 2px;
+      font-size: 2.5rem;
+      font-weight: 700;
+      height: 3rem;
+      width: 3rem;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      text-transform: uppercase;
+    }
+
+    .filled-box {
+      border: 2px solid black;
+    }
+
+    .letter-row {
+      display: flex;
+    }
+
+    #keyboard-cont {
+      margin: 1rem 0;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+    }
+
+    #keyboard-cont div {
+      display: flex;
+    }
+
+    .second-row {
+      margin: 0.5rem 0;
+    }
+
+    .keyboard-button {
+      font-size: 1rem;
+      font-weight: 700;
+      padding: 0.5rem;
+      margin: 0 2px;
+      cursor: pointer;
+      text-transform: uppercase;
+    }
+  </style>
+  <body>
+    <div class="container">
+      <div class="box">
+        <h1>Wordle Demo</h1>
+
+        <div id="game-board"></div>
+
+        <div id="keyboard-cont">
+          <div class="first-row">
+            <button class="keyboard-button">q</button>
+            <button class="keyboard-button">w</button>
+            <button class="keyboard-button">e</button>
+            <button class="keyboard-button">r</button>
+            <button class="keyboard-button">t</button>
+            <button class="keyboard-button">y</button>
+            <button class="keyboard-button">u</button>
+            <button class="keyboard-button">i</button>
+            <button class="keyboard-button">o</button>
+            <button class="keyboard-button">p</button>
+          </div>
+          <div class="second-row">
+            <button class="keyboard-button">a</button>
+            <button class="keyboard-button">s</button>
+            <button class="keyboard-button">d</button>
+            <button class="keyboard-button">f</button>
+            <button class="keyboard-button">g</button>
+            <button class="keyboard-button">h</button>
+            <button class="keyboard-button">j</button>
+            <button class="keyboard-button">k</button>
+            <button class="keyboard-button">l</button>
+          </div>
+          <div class="third-row">
+            <button class="keyboard-button">Del</button>
+            <button class="keyboard-button">z</button>
+            <button class="keyboard-button">x</button>
+            <button class="keyboard-button">c</button>
+            <button class="keyboard-button">v</button>
+            <button class="keyboard-button">b</button>
+            <button class="keyboard-button">n</button>
+            <button class="keyboard-button">m</button>
+            <button class="keyboard-button">Enter</button>
+          </div>
+        </div>
+      </div>
+      <div class="box">
+        <h1>Solver</h1>
+        <div id="dict-words"></div>
+        <div id="solver" style="max-height: 600px; overflow: auto"></div>
+      </div>
+    </div>
+    <script
+      src="https://code.jquery.com/jquery-3.6.0.min.js"
+      integrity="sha256-/xUj+3OJU5yExlq6GSYGSHk7tPXikynS7ogEvDej/m4="
+      crossorigin="anonymous"
+    ></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/toastr.js/latest/toastr.min.js"></script>
+    <script>
+      let WORDS = [];
+
+      let guesses = "";
+      let colors = "";
+
+      let rightGuessString = "";
+      const NUMBER_OF_GUESSES = 6;
+      let guessesRemaining = NUMBER_OF_GUESSES;
+      let currentGuess = [];
+      let nextLetter = 0;
+
+      fetch(
+        "https://raw.githubusercontent.com/AniruddhS24/cuda-wordle/main/basic_dictionary/potential_words.txt"
+      )
+        .then((r) => r.text())
+        .then((t) => {
+          WORDS = t.split("\n");
+          rightGuessString = WORDS[Math.floor(Math.random() * WORDS.length)];
+          console.log(rightGuessString);
+          initBoard();
+          getSolverResponse();
+        });
+
+      function initBoard() {
+        let board = document.getElementById("game-board");
+
+        for (let i = 0; i < NUMBER_OF_GUESSES; i++) {
+          let row = document.createElement("div");
+          row.className = "letter-row";
+
+          for (let j = 0; j < 5; j++) {
+            let box = document.createElement("div");
+            box.className = "letter-box";
+            row.appendChild(box);
+          }
+
+          board.appendChild(row);
+        }
+      }
+
+      function shadeKeyBoard(letter, color) {
+        for (const elem of document.getElementsByClassName("keyboard-button")) {
+          if (elem.textContent === letter) {
+            let oldColor = elem.style.backgroundColor;
+            if (oldColor === "green") {
+              return;
+            }
+
+            if (oldColor === "yellow" && color !== "green") {
+              return;
+            }
+
+            elem.style.backgroundColor = color;
+            break;
+          }
+        }
+      }
+
+      function deleteLetter() {
+        let row =
+          document.getElementsByClassName("letter-row")[6 - guessesRemaining];
+        let box = row.children[nextLetter - 1];
+        box.textContent = "";
+        box.classList.remove("filled-box");
+        currentGuess.pop();
+        nextLetter -= 1;
+      }
+
+      function checkGuess() {
+        let row =
+          document.getElementsByClassName("letter-row")[6 - guessesRemaining];
+        let guessString = "";
+        let rightGuess = Array.from(rightGuessString);
+
+        for (const val of currentGuess) {
+          guessString += val;
+        }
+
+        if (guessString.length != 5) {
+          toastr.error("Not enough letters!");
+          return;
+        }
+
+        if (!WORDS.includes(guessString)) {
+          toastr.error("Word not in list!");
+          return;
+        }
+
+        var letterColor = ["gray", "gray", "gray", "gray", "gray"];
+
+        //check green
+        for (let i = 0; i < 5; i++) {
+          if (rightGuess[i] == currentGuess[i]) {
+            letterColor[i] = "green";
+            rightGuess[i] = "#";
+          }
+        }
+
+        //check yellow
+        //checking guess letters
+        for (let i = 0; i < 5; i++) {
+          if (letterColor[i] == "green") continue;
+
+          //checking right letters
+          for (let j = 0; j < 5; j++) {
+            if (rightGuess[j] == currentGuess[i]) {
+              letterColor[i] = "yellow";
+              rightGuess[j] = "#";
+            }
+          }
+        }
+
+        guesses += guessString + " ";
+        for (let i = 0; i < 5; i++) {
+          if (letterColor[i] === "green") {
+            colors += "G";
+          } else if (letterColor[i] === "yellow") {
+            colors += "Y";
+          } else {
+            colors += "X";
+          }
+        }
+        colors += " ";
+
+        for (let i = 0; i < 5; i++) {
+          let box = row.children[i];
+          let delay = 250 * i;
+          setTimeout(() => {
+            //flip box
+            animateCSS(box, "flipInX");
+            //shade box
+            box.style.backgroundColor = letterColor[i];
+            shadeKeyBoard(guessString.charAt(i) + "", letterColor[i]);
+          }, delay);
+        }
+
+        getSolverResponse();
+
+        if (guessString === rightGuessString) {
+          toastr.success("You guessed right! Game over!");
+          guessesRemaining = 0;
+          return;
+        } else {
+          guessesRemaining -= 1;
+          currentGuess = [];
+          nextLetter = 0;
+
+          if (guessesRemaining === 0) {
+            toastr.error("You've run out of guesses! Game over!");
+            toastr.info(`The right word was: "${rightGuessString}"`);
+          }
+        }
+      }
+
+      function getSolverResponse() {
+        const tmp = document.getElementById("solver");
+        // clear all elements in tmp
+        while (tmp.firstChild) {
+          tmp.removeChild(tmp.firstChild);
+        }
+        const loading = document.createElement("p");
+        loading.textContent = "Loading... this is why you need a GPU :)";
+        tmp.appendChild(loading);
+
+        fetch("http://127.0.0.1:5000/query", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            guesses: guesses,
+            colors: colors,
+          }),
+        })
+          .then((response) => response.json())
+          .then((data) => {
+            const dist = data["distribution"];
+            while (tmp.firstChild) {
+              tmp.removeChild(tmp.firstChild);
+            }
+            const dict_words = document.getElementById("dict-words");
+            const dictionary_size = data["dictionary_size"];
+            dict_words.textContent = `Words in dictionary: ${dictionary_size}`;
+
+            for (let i = 0; i < dist.length; i++) {
+              // const p = document.createElement("p");
+              // p.textContent = dist[i];
+              // tmp.appendChild(p);
+              if (dist[i] === "") continue;
+              const parts = dist[i].split(" ");
+              const entropy = parseFloat(parts[0]);
+              const word = parts[1];
+              const div = document.createElement("div");
+
+              const entropy_container = document.createElement("div");
+              const entropy_bar = document.createElement("div");
+              const entropy_bar_inner = document.createElement("div");
+              const entropy_text = document.createElement("span");
+              const word_text = document.createElement("p");
+
+              entropy_bar.style.marginLeft = "5px";
+              entropy_bar.style.width = "200px";
+              entropy_bar.style.height = "10px";
+              entropy_bar.style.backgroundColor = "gray";
+              entropy_bar_inner.style.backgroundColor = "green";
+              entropy_bar_inner.style.width = `${
+                (entropy / Math.log2(dictionary_size)) * 100
+              }%`;
+              entropy_bar_inner.style.height = "100%";
+
+              entropy_bar.style.display = "inline-block";
+              entropy_text.style.display = "inline-block";
+              entropy_container.style.display = "inline-block";
+              entropy_container.style.marginLeft = "20px";
+              word_text.style.display = "inline-block";
+
+              entropy_text.textContent = entropy.toFixed(2);
+              word_text.textContent = word;
+              entropy_bar.appendChild(entropy_bar_inner);
+              entropy_container.appendChild(entropy_text);
+              entropy_container.appendChild(entropy_bar);
+              div.appendChild(word_text);
+              div.appendChild(entropy_container);
+
+              tmp.appendChild(div);
+            }
+          })
+          .catch((error) => {
+            console.error("Error:", error);
+          });
+      }
+
+      function insertLetter(pressedKey) {
+        if (nextLetter === 5) {
+          return;
+        }
+        pressedKey = pressedKey.toLowerCase();
+
+        let row =
+          document.getElementsByClassName("letter-row")[6 - guessesRemaining];
+        let box = row.children[nextLetter];
+        animateCSS(box, "pulse");
+        box.textContent = pressedKey;
+        box.classList.add("filled-box");
+        currentGuess.push(pressedKey);
+        nextLetter += 1;
+      }
+
+      const animateCSS = (element, animation, prefix = "animate__") =>
+        // We create a Promise and return it
+        new Promise((resolve, reject) => {
+          const animationName = `${prefix}${animation}`;
+          // const node = document.querySelector(element);
+          const node = element;
+          node.style.setProperty("--animate-duration", "0.3s");
+
+          node.classList.add(`${prefix}animated`, animationName);
+
+          // When the animation ends, we clean the classes and resolve the Promise
+          function handleAnimationEnd(event) {
+            event.stopPropagation();
+            node.classList.remove(`${prefix}animated`, animationName);
+            resolve("Animation ended");
+          }
+
+          node.addEventListener("animationend", handleAnimationEnd, {
+            once: true,
+          });
+        });
+
+      document.addEventListener("keyup", (e) => {
+        if (guessesRemaining === 0) {
+          return;
+        }
+
+        let pressedKey = String(e.key);
+        if (pressedKey === "Backspace" && nextLetter !== 0) {
+          deleteLetter();
+          return;
+        }
+
+        if (pressedKey === "Enter") {
+          checkGuess();
+          return;
+        }
+
+        let found = pressedKey.match(/[a-z]/gi);
+        if (!found || found.length > 1) {
+          return;
+        } else {
+          insertLetter(pressedKey);
+        }
+      });
+
+      document
+        .getElementById("keyboard-cont")
+        .addEventListener("click", (e) => {
+          const target = e.target;
+
+          if (!target.classList.contains("keyboard-button")) {
+            return;
+          }
+          let key = target.textContent;
+
+          if (key === "Del") {
+            key = "Backspace";
+          }
+
+          document.dispatchEvent(new KeyboardEvent("keyup", { key: key }));
+        });
+
+      // initBoard();
+    </script>
+  </body>
+</html>

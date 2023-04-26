@@ -9,8 +9,8 @@ struct Arguments
     std::string dictionary_filepath;
     bool suppress_output;
     bool interactive;
-    bool use_gpu;
-    // more flags and stuff for diff implementations
+    std::string guesses; // used for interactive mode
+    std::string colors;  // used for interactive mode
 };
 
 Arguments parse_arguments(int argc, char **argv);

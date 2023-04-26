@@ -1,6 +1,6 @@
 #include "run_args.h"
 #include "wordle.h"
-#include "host/solver.h"
+#include "serial_solver.h"
 #include "util.h"
 #include <iostream>
 #include <time.h>
@@ -30,8 +30,7 @@ int main(int argc, char **argv)
 
     // cout << "Actual word is: " << wordle.decode_word(wordle.get_target_word()) << endl;
 
-    Solver solver{wordle.vocab.size, 5, wordle.dictionary.potential_words};
-
+    SerialSolver solver{wordle.vocab.size, 5, wordle.dictionary.potential_words};
 
     int num_guesses = 1;
     while (num_guesses <= 5)
@@ -39,23 +38,21 @@ int main(int argc, char **argv)
         string guess;
         vector<int> solver_guess = {};
         auto start_solver = chrono::high_resolution_clock::now();
-        if (args.use_gpu) {
-          solver_guess  = solver.cuda_solver(wordle.state.guesses, wordle.state.colors);        
-        } else {
-          solver_guess = solver.serial_solver(wordle.state.guesses, wordle.state.colors);
-        }
+        solver_guess = solver.solve(wordle.state.guesses, wordle.state.colors);
         auto end_solver = chrono::high_resolution_clock::now();
         cout << "Solver Iteration Time: " << std::chrono::duration_cast<std::chrono::nanoseconds>(end_solver - start_solver).count() << endl;
 
-        
         cout << "Solver guessed: " << wordle.decode_word(solver_guess) << endl;
         cout << "Guess: ";
-        if (args.interactive) {
-          cin >> guess;
-        } else {
-          guess = wordle.decode_word(solver_guess);
+        if (args.interactive)
+        {
+            cin >> guess;
         }
-        
+        else
+        {
+            guess = wordle.decode_word(solver_guess);
+        }
+
         int color = wordle.post_guess(guess);
         cout << "Colors: " << endl;
         for (int i = 0; i < 5; i++)
@@ -85,7 +82,7 @@ int main(int argc, char **argv)
             break;
         }
         num_guesses++;
-        cout << endl; 
+        cout << endl;
     }
     auto end_e2e = chrono::high_resolution_clock::now();
     cout << "End to End Time: " << std::chrono::duration_cast<std::chrono::nanoseconds>(end_e2e - start_e2e).count() << endl;
