@@ -3,6 +3,7 @@
 #include <iostream>
 #include "serial_solver.h"
 #include "wordle.h"
+#include <math.h>
 
 using namespace std;
 
