@@ -26,3 +26,5 @@ python3 app.py
 ```
 
 The interface should be running on localhost.
+
+Credits: The Wordle interface was built using https://github.com/Morgenstern2573/wordle_clone as a template.
