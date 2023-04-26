@@ -32,6 +32,10 @@ def query_solver():
     print(packet['distribution'])
     return json.dumps(packet)
 
+@app.route('/alive', methods=['GET'])
+def alive():
+    return 'I am alive!'
+
 
 if __name__ == '__main__':
     port = os.environ.get('PORT', 5000)
